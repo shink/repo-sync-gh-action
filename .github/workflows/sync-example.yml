@@ -1,0 +1,58 @@
+name: Sync from GitCode to GitHub
+
+on:
+  schedule:
+    # Run daily at midnight UTC
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+    # Allow manual triggering
+    inputs:
+      gitcode_repo:
+        description: "GitCode repository (owner/repo)"
+        required: true
+        default: "owner/repository-name"
+      github_repo:
+        description: "GitHub repository (owner/repo)"
+        required: false
+        default: "owner/repository-name"
+      branches:
+        description: "Branches to sync (comma-separated)"
+        required: false
+        default: "main,master"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout action repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build action
+        run: npm run build
+
+      - name: Sync repository from GitCode
+        uses: ./
+        with:
+          gitcode_token: ${{ secrets.GITCODE_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gitcode_repo: ${{ github.event.inputs.gitcode_repo || 'owner/repository-name' }}
+          github_repo: ${{ github.event.inputs.github_repo || 'owner/repository-name' }}
+          sync_branches: ${{ github.event.inputs.branches || 'main,master' }}
+          dry_run: false
+
+      - name: Display sync results
+        run: |
+          echo "Sync status: ${{ steps.sync.outputs.sync_status }}"
+          echo "Synced branches: ${{ steps.sync.outputs.synced_branches }}"
+          echo "Failed branches: ${{ steps.sync.outputs.failed_branches }}"

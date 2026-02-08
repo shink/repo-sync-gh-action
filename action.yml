@@ -1,0 +1,45 @@
+name: 'Sync Git repos'
+description: 'Sync Git repositories'
+author: 'Yuanhao Ji'
+
+inputs:
+  gitcode_token:
+    description: 'GitCode personal access token'
+    required: true
+  github_token:
+    description: 'GitHub personal access token'
+    required: true
+  gitcode_repo:
+    description: 'GitCode repository in format "owner/repo"'
+    required: true
+  github_repo:
+    description: 'GitHub repository in format "owner/repo" (optional, defaults to same as gitcode_repo)'
+    required: false
+  sync_branches:
+    description: 'Comma-separated list of branches to sync (default: "main,master")'
+    required: false
+    default: 'main,master'
+  force_push:
+    description: 'Force push to GitHub (default: false)'
+    required: false
+    default: 'false'
+  dry_run:
+    description: 'Dry run mode - only show what would be done (default: false)'
+    required: false
+    default: 'false'
+
+outputs:
+  sync_status:
+    description: 'Sync status summary'
+  synced_branches:
+    description: 'List of successfully synced branches'
+  failed_branches:
+    description: 'List of branches that failed to sync'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
+
+branding:
+  icon: 'git-merge'
+  color: 'blue'
