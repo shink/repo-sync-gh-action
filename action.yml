@@ -1,12 +1,15 @@
-name: 'Sync Git repos'
+name: 'repo-sync-gh-action'
 description: 'Mirror-sync Git repositories from a source platform to a destination platform'
 author: 'Yuanhao Ji'
+branding:
+  icon: 'git-merge'
+  color: 'blue'
 
 inputs:
   src_platform:
-    description: 'Source platform (e.g. gitcode.com)'
+    description: 'Source platform (e.g. github.com)'
     required: false
-    default: 'gitcode.com'
+    default: 'github.com'
   src_repo:
     description: 'Source repository in format "owner/repo"'
     required: true
@@ -38,7 +41,3 @@ outputs:
 runs:
   using: 'node20'
   main: 'dist/index.js'
-
-branding:
-  icon: 'git-merge'
-  color: 'blue'

@@ -24,7 +24,7 @@ A GitHub Action that **mirror-syncs** repositories between Git hosting platforms
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
-| `src_platform` | Source platform (e.g. `gitcode.com`) | No | `gitcode.com` |
+| `src_platform` | Source platform (e.g. `github.com`) | No | `github.com` |
 | `src_repo` | Source repository in format `owner/repo` | Yes | - |
 | `src_token` | Source platform access token (optional for public repos) | No | - |
 | `dst_platform` | Destination platform (e.g. `github.com`) | No | `github.com` |
@@ -75,7 +75,7 @@ jobs:
 
       - name: Sync repository
         id: sync
-        uses: ./
+        uses: shink/repo-sync-gh-action@v1
         with:
           src_platform: gitcode.com
           src_repo: 'owner/repository-name'
@@ -95,7 +95,7 @@ Use `dst_key` instead of `dst_token` to push via SSH:
 
 ```yaml
 - name: Sync repository (SSH push)
-  uses: ./
+  uses: shink/repo-sync-gh-action@v1
   with:
     src_platform: gitcode.com
     src_repo: 'owner/repository-name'
@@ -139,7 +139,7 @@ jobs:
 
       - name: Sync ${{ matrix.src_repo }}
         id: sync
-        uses: ./
+        uses: shink/repo-sync-gh-action@v1
         with:
           src_platform: gitcode.com
           src_repo: ${{ matrix.src_repo }}
