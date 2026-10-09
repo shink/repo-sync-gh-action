@@ -106,15 +106,15 @@ export async function syncRepository(): Promise<void> {
       core.info('Cloning source repository (mirror)...');
       runCmd('git', ['clone', '--mirror', srcGitUrl, tmpDir]);
 
-      // 镜像推送到目标仓库（同步所有 ref，并删除目标端多余的分支）
+      // 仅推送所有分支与标签，跳过 refs/tmp/*、refs/pull/* 等非标准 ref
       // dry-run 模式下传入 --dry-run，不实际执行
-      const pushArgs = ['push', '--mirror'];
+      const pushArgs = ['push'];
       if (dryRun) pushArgs.push('--dry-run');
-      pushArgs.push(dstGitUrl);
-      core.info('Pushing to destination repository (mirror)...');
+      pushArgs.push(dstGitUrl, 'refs/heads/*:refs/heads/*', 'refs/tags/*:refs/tags/*');
+      core.info('Pushing branches and tags to destination repository...');
       runCmd('git', pushArgs, { cwd: tmpDir, env: pushEnv });
 
-      core.info('Mirror sync completed successfully');
+      core.info('Sync completed successfully');
       result.success = true;
     } finally {
       // 清理临时目录与 SSH 密钥文件

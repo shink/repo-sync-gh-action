@@ -38810,15 +38810,16 @@ async function syncRepository() {
             // 镜像克隆源仓库（包含所有分支、tag、commit 的裸仓库）
             core.info('Cloning source repository (mirror)...');
             runCmd('git', ['clone', '--mirror', srcGitUrl, tmpDir]);
-            // 镜像推送到目标仓库（同步所有 ref，并删除目标端多余的分支）
+            // 仅推送所有分支与标签，跳过 refs/tmp/*、refs/pull/* 等非标准 ref
+            // （--mirror 会推送全部 ref 并删除目标端多余分支，refs/tmp/* 会被目标端拒绝）
             // dry-run 模式下传入 --dry-run，不实际执行
-            const pushArgs = ['push', '--mirror'];
+            const pushArgs = ['push'];
             if (dryRun)
                 pushArgs.push('--dry-run');
-            pushArgs.push(dstGitUrl);
-            core.info('Pushing to destination repository (mirror)...');
+            pushArgs.push(dstGitUrl, 'refs/heads/*:refs/heads/*', 'refs/tags/*:refs/tags/*');
+            core.info('Pushing branches and tags to destination repository...');
             runCmd('git', pushArgs, { cwd: tmpDir, env: pushEnv });
-            core.info('Mirror sync completed successfully');
+            core.info('Sync completed successfully');
             result.success = true;
         }
         finally {
