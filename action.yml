@@ -1,5 +1,5 @@
 name: 'Sync Git repos'
-description: 'Sync Git repositories from a source platform to a destination platform'
+description: 'Mirror-sync Git repositories from a source platform to a destination platform'
 author: 'Yuanhao Ji'
 
 inputs:
@@ -11,8 +11,8 @@ inputs:
     description: 'Source repository in format "owner/repo"'
     required: true
   src_token:
-    description: 'Source platform access token'
-    required: true
+    description: 'Source platform access token (optional for public repos)'
+    required: false
   dst_platform:
     description: 'Destination platform (e.g. github.com)'
     required: false
@@ -21,16 +21,11 @@ inputs:
     description: 'Destination repository in format "owner/repo"'
     required: true
   dst_token:
-    description: 'Destination platform access token'
-    required: true
-  branches:
-    description: 'Branches to sync, comma-separated, or "*" for all branches (default: "*")'
+    description: 'Destination platform access token (required if dst_key not provided)'
     required: false
-    default: '*'
-  force:
-    description: 'Overwrite existing files on the destination (default: false)'
+  dst_key:
+    description: 'SSH private key for pushing to destination (uses SSH instead of HTTPS when provided)'
     required: false
-    default: 'false'
   dry_run:
     description: 'Dry run mode - only show what would be done (default: false)'
     required: false
@@ -39,10 +34,6 @@ inputs:
 outputs:
   sync_status:
     description: 'Sync status summary ("success" or "failed")'
-  synced_branches:
-    description: 'List of successfully synced branches'
-  failed_branches:
-    description: 'List of branches that failed to sync'
 
 runs:
   using: 'node20'

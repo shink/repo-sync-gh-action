@@ -1,17 +1,17 @@
 # Repo Sync Action
 
-A GitHub Action that synchronizes repositories between Git hosting platforms.
+A GitHub Action that **mirror-syncs** repositories between Git hosting platforms using `git clone --mirror` + `git push --mirror`, keeping source and destination fully identical (all branches, tags, and commits).
 
 > Currently supports GitCode and GitHub, with a pluggable architecture to add more platforms.
 
 ## Features
 
-- Sync repositories between any supported source and destination platforms
-- Sync all branches (`branches: '*'`) or a comma-separated list
-- Dry run mode for testing without side effects
-- Force overwrite of existing files on the destination
+- Full mirror sync via `git clone --mirror` + `git push --mirror` — all branches, tags, and commits
 - Auto-create destination repository if it doesn't exist
-- Detailed sync metadata written to README.md on each synced branch
+- Dry run mode for testing without side effects
+- Push via HTTPS token or SSH key
+- Source token optional for public repositories
+- Platform-agnostic client architecture
 
 ## Supported Platforms
 
@@ -26,12 +26,11 @@ A GitHub Action that synchronizes repositories between Git hosting platforms.
 |-------|-------------|----------|---------|
 | `src_platform` | Source platform (e.g. `gitcode.com`) | No | `gitcode.com` |
 | `src_repo` | Source repository in format `owner/repo` | Yes | - |
-| `src_token` | Source platform access token | Yes | - |
+| `src_token` | Source platform access token (optional for public repos) | No | - |
 | `dst_platform` | Destination platform (e.g. `github.com`) | No | `github.com` |
 | `dst_repo` | Destination repository in format `owner/repo` | Yes | - |
-| `dst_token` | Destination platform access token | Yes | - |
-| `branches` | Branches to sync, comma-separated, or `*` for all | No | `*` |
-| `force` | Overwrite existing files on the destination | No | `false` |
+| `dst_token` | Destination platform access token (required if `dst_key` not provided) | No | - |
+| `dst_key` | SSH private key for pushing to destination | No | - |
 | `dry_run` | Dry run mode - only show what would be done | No | `false` |
 
 ## Outputs
@@ -39,8 +38,6 @@ A GitHub Action that synchronizes repositories between Git hosting platforms.
 | Output | Description |
 |--------|-------------|
 | `sync_status` | Sync status summary (`success` or `failed`) |
-| `synced_branches` | List of successfully synced branches |
-| `failed_branches` | List of branches that failed to sync |
 
 ## Usage
 
@@ -86,35 +83,34 @@ jobs:
           dst_platform: github.com
           dst_repo: ${{ github.repository }}
           dst_token: ${{ secrets.GITHUB_TOKEN }}
-          branches: '*'
-          force: true
 
       - name: Display sync results
         run: |
           echo "Sync status: ${{ steps.sync.outputs.sync_status }}"
-          echo "Synced branches: ${{ steps.sync.outputs.synced_branches }}"
-          echo "Failed branches: ${{ steps.sync.outputs.failed_branches }}"
 ```
 
-### Sync Specific Branches
+### Push via SSH Key
+
+Use `dst_key` instead of `dst_token` to push via SSH:
 
 ```yaml
-- name: Sync specific branches
-  uses: shink/repo-sync-gh-action@v1
+- name: Sync repository (SSH push)
+  uses: ./
   with:
     src_platform: gitcode.com
-    src_repo: 'opensource/project'
-    src_token: ${{ secrets.GITCODE_PAT }}
+    src_repo: 'owner/repository-name'
+    src_token: ${{ secrets.GITCODE_TOKEN }}
     dst_platform: github.com
-    dst_repo: 'myorg/project-fork'
-    dst_token: ${{ secrets.GH_PAT }}
-    branches: 'main,master,develop'
-    force: false
+    dst_repo: 'org/repository-name'
+    dst_token: ${{ secrets.GITHUB_TOKEN }}  # 用于 API 创建仓库
+    dst_key: ${{ secrets.DEPLOY_SSH_KEY }}  # 用于 SSH 推送
 ```
+
+> When `dst_key` is provided, push uses SSH protocol; `dst_token` is still used for API operations (checking/creating the destination repo). For public source repos, `src_token` can be omitted entirely.
 
 ### Sync Multiple Repositories
 
-Use GitHub Actions `matrix` strategy to sync multiple repos in a single workflow run. Each repo runs as an independent job with its own `branches` and `force` settings:
+Use GitHub Actions `matrix` strategy to sync multiple repos in a single workflow run — each repo runs as an independent parallel job:
 
 ```yaml
 jobs:
@@ -128,16 +124,10 @@ jobs:
         include:
           - src_repo: 'src_org/repo1'
             dst_repo: 'dst_org/repo1'
-            branches: '*'
-            force: true
           - src_repo: 'src_org/repo2'
             dst_repo: 'dst_org/repo2'
-            branches: 'main,master'
-            force: false
           - src_repo: 'src_org/repo3'
             dst_repo: 'dst_org/repo3'
-            branches: 'main'
-            force: false
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -157,15 +147,13 @@ jobs:
           dst_platform: github.com
           dst_repo: ${{ matrix.dst_repo }}
           dst_token: ${{ secrets.GITHUB_TOKEN }}
-          branches: ${{ matrix.branches }}
-          force: ${{ matrix.force }}
 
       - name: Display sync results
         run: |
           echo "Sync status: ${{ steps.sync.outputs.sync_status }}"
-          echo "Synced branches: ${{ steps.sync.outputs.synced_branches }}"
-          echo "Failed branches: ${{ steps.sync.outputs.failed_branches }}"
 ```
+
+> **Why matrix?** Each repo syncs in parallel as a separate job. `fail-fast: false` ensures one repo's failure doesn't cancel the others.
 
 ## Setup
 
@@ -207,23 +195,20 @@ src/
 ├── types.ts             — PlatformClient interface + shared types
 ├── platform.ts          — createClient() factory + getSupportedPlatforms()
 ├── client/
-│   ├── gitcode-client.ts — GitCodeClient (GitLab API v4)
+│   ├── gitcode-client.ts — GitCodeClient (GitCode V5 API)
 │   └── github-client.ts  — GitHubClient (Octokit)
-├── utils.ts             — parseRepo, parseBranches, isErrorWithStatus
-├── reporter.ts          — README content builder, action outputs, sync summary
-└── index.ts             — main sync flow
+├── utils.ts             — parseRepo, isErrorWithStatus
+├── reporter.ts          — action outputs, sync summary
+└── index.ts             — main mirror sync flow (git clone --mirror + git push --mirror)
 ```
 
 ### How It Works
 
 1. **Client Factory**: `createClient(src_platform, src_token)` and `createClient(dst_platform, dst_token)` create the appropriate clients based on platform names
-2. **Source Repository**: Fetches repository info and all branches from the source platform
-3. **Target Repository**: Creates the destination repository if it doesn't exist
-4. **Branch Sync**: For each branch:
-   - Checks if the branch exists in the source repository
-   - Checks if README.md already exists on the destination branch
-   - If `force=true` or file doesn't exist: writes sync metadata to README.md
-5. **Output**: Sets `sync_status`, `synced_branches`, and `failed_branches` outputs
+2. **Source Check**: Verifies the source repository exists via API
+3. **Target Setup**: Creates the destination repository if it doesn't exist
+4. **Mirror Sync**: `git clone --mirror` from source, then `git push --mirror` to destination — syncs all branches, tags, and commits atomically
+5. **Output**: Sets `sync_status` output (`success` or `failed`)
 
 ### Adding a New Platform
 
@@ -236,10 +221,9 @@ src/
 
 ## Limitations
 
-- Currently writes sync metadata to README.md instead of full code sync (clone + push)
-- `branches: '*'` fetches up to 100 branches per page; repositories with more branches may be partially synced
-- GitCode is read-only (source); write operations are not yet implemented
-- Branch names are matched literally — glob patterns like `release/*` are not expanded
+- `git push --mirror` overwrites all refs on the destination — there is no selective branch sync
+- GitCode is source-only; write operations (creating repos) are not yet implemented
+- Destination repository must be under an organization (GitHub `createInOrg` API); user-level repo creation is not supported
 
 ## Contributing
 

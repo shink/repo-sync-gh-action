@@ -1,5 +1,5 @@
-// 单元测试：验证仓库地址解析、分支解析与客户端工厂逻辑
-import { parseRepo, parseBranches } from '../src/utils';
+// 单元测试：验证仓库地址解析、客户端工厂与 Git URL 生成逻辑
+import { parseRepo } from '../src/utils';
 import { createClient, getSupportedPlatforms } from '../src/platform';
 
 describe('parseRepo', () => {
@@ -32,59 +32,61 @@ describe('parseRepo', () => {
   });
 });
 
-describe('parseBranches', () => {
-  it('returns all branches for "*"', () => {
-    expect(parseBranches('*', ['main', 'master', 'dev'])).toEqual(['main', 'master', 'dev']);
-  });
-
-  it('returns all branches for " * " (whitespace trimmed)', () => {
-    expect(parseBranches(' * ', ['main', 'master'])).toEqual(['main', 'master']);
-  });
-
-  it('splits a comma-separated list', () => {
-    expect(parseBranches('main,master')).toEqual(['main', 'master']);
-  });
-
-  it('splits and trims whitespace', () => {
-    expect(parseBranches('main, master, develop ')).toEqual(['main', 'master', 'develop']);
-  });
-
-  it('ignores empty entries', () => {
-    expect(parseBranches('main,,master,')).toEqual(['main', 'master']);
-  });
-
-  it('handles a single branch', () => {
-    expect(parseBranches('main')).toEqual(['main']);
-  });
-
-  it('defaults to ["main","master"] when empty', () => {
-    expect(parseBranches('')).toEqual(['main', 'master']);
-  });
-
-  it('defaults to ["main","master"] when undefined', () => {
-    expect(parseBranches(undefined as unknown as string)).toEqual(['main', 'master']);
-  });
-
-  it('returns empty array for "*" with no allBranches given', () => {
-    expect(parseBranches('*')).toEqual([]);
-  });
-});
-
 describe('createClient', () => {
   it('creates a client for gitcode.com', () => {
     const client = createClient('gitcode.com', 'test-token');
     expect(client).toBeDefined();
     expect(typeof client.getRepository).toBe('function');
+    expect(typeof client.getGitUrl).toBe('function');
   });
 
   it('creates a client for github.com', () => {
     const client = createClient('github.com', 'test-token');
     expect(client).toBeDefined();
     expect(typeof client.getRepository).toBe('function');
+    expect(typeof client.getGitUrl).toBe('function');
   });
 
   it('throws for unsupported platform', () => {
     expect(() => createClient('gitlab.com', 'test-token')).toThrow(/Unsupported platform/);
+  });
+});
+
+describe('getGitUrl', () => {
+  it('returns HTTPS URL with token for gitcode.com', () => {
+    const client = createClient('gitcode.com', 'my-token');
+    const url = client.getGitUrl('cann', 'hccl');
+    expect(url).toBe('https://oauth2:my-token@gitcode.com/cann/hccl.git');
+  });
+
+  it('returns HTTPS URL with token for github.com', () => {
+    const client = createClient('github.com', 'my-token');
+    const url = client.getGitUrl('org', 'repo');
+    expect(url).toBe('https://x-access-token:my-token@github.com/org/repo.git');
+  });
+
+  it('returns SSH URL when key is provided (gitcode.com)', () => {
+    const client = createClient('gitcode.com', 'my-token', 'ssh-key');
+    const url = client.getGitUrl('cann', 'hccl');
+    expect(url).toBe('git@gitcode.com:cann/hccl.git');
+  });
+
+  it('returns SSH URL when key is provided (github.com)', () => {
+    const client = createClient('github.com', 'my-token', 'ssh-key');
+    const url = client.getGitUrl('org', 'repo');
+    expect(url).toBe('git@github.com:org/repo.git');
+  });
+
+  it('returns anonymous HTTPS URL when no token or key (gitcode.com)', () => {
+    const client = createClient('gitcode.com', '');
+    const url = client.getGitUrl('cann', 'hccl');
+    expect(url).toBe('https://gitcode.com/cann/hccl.git');
+  });
+
+  it('returns anonymous HTTPS URL when no token or key (github.com)', () => {
+    const client = createClient('github.com', '');
+    const url = client.getGitUrl('org', 'repo');
+    expect(url).toBe('https://github.com/org/repo.git');
   });
 });
 
