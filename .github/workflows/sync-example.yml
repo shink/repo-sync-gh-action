@@ -6,19 +6,6 @@ on:
     - cron: "0 0 * * *"
   workflow_dispatch:
     # Allow manual triggering
-    inputs:
-      gitcode_repo:
-        description: "GitCode repository (owner/repo)"
-        required: true
-        default: "owner/repository-name"
-      github_repo:
-        description: "GitHub repository (owner/repo)"
-        required: false
-        default: "owner/repository-name"
-      branches:
-        description: "Branches to sync (comma-separated)"
-        required: false
-        default: "main,master"
 
 jobs:
   sync:
@@ -26,11 +13,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout action repository
-        uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: "npm"
@@ -42,14 +29,18 @@ jobs:
         run: npm run build
 
       - name: Sync repository from GitCode
+        id: sync
         uses: ./
         with:
-          gitcode_token: ${{ secrets.GITCODE_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          gitcode_repo: ${{ github.event.inputs.gitcode_repo || 'owner/repository-name' }}
-          github_repo: ${{ github.event.inputs.github_repo || 'owner/repository-name' }}
-          sync_branches: ${{ github.event.inputs.branches || 'main,master' }}
-          dry_run: false
+          src_platform: gitcode.com
+          src_repo: cann/hccl
+          src_token: ${{ secrets.GITCODE_TOKEN }}
+          dst_platform: github.com
+          dst_repo: ${{ github.repository }}
+          dst_token: ${{ secrets.GITHUB_TOKEN }}
+          branches: '*'
+          force: true
+          dry_run: true
 
       - name: Display sync results
         run: |

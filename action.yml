@@ -1,26 +1,34 @@
 name: 'Sync Git repos'
-description: 'Sync Git repositories'
+description: 'Sync Git repositories from a source platform to a destination platform'
 author: 'Yuanhao Ji'
 
 inputs:
-  gitcode_token:
-    description: 'GitCode personal access token'
-    required: true
-  github_token:
-    description: 'GitHub personal access token'
-    required: true
-  gitcode_repo:
-    description: 'GitCode repository in format "owner/repo"'
-    required: true
-  github_repo:
-    description: 'GitHub repository in format "owner/repo" (optional, defaults to same as gitcode_repo)'
+  src_platform:
+    description: 'Source platform (e.g. gitcode.com)'
     required: false
-  sync_branches:
-    description: 'Comma-separated list of branches to sync (default: "main,master")'
+    default: 'gitcode.com'
+  src_repo:
+    description: 'Source repository in format "owner/repo"'
+    required: true
+  src_token:
+    description: 'Source platform access token'
+    required: true
+  dst_platform:
+    description: 'Destination platform (e.g. github.com)'
     required: false
-    default: 'main,master'
-  force_push:
-    description: 'Force push to GitHub (default: false)'
+    default: 'github.com'
+  dst_repo:
+    description: 'Destination repository in format "owner/repo"'
+    required: true
+  dst_token:
+    description: 'Destination platform access token'
+    required: true
+  branches:
+    description: 'Branches to sync, comma-separated, or "*" for all branches (default: "*")'
+    required: false
+    default: '*'
+  force:
+    description: 'Overwrite existing files on the destination (default: false)'
     required: false
     default: 'false'
   dry_run:
@@ -30,7 +38,7 @@ inputs:
 
 outputs:
   sync_status:
-    description: 'Sync status summary'
+    description: 'Sync status summary ("success" or "failed")'
   synced_branches:
     description: 'List of successfully synced branches'
   failed_branches:

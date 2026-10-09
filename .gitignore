@@ -34,3 +34,7 @@ junit.xml
 # Temporary files
 tmp/
 temp/
+
+# Agents
+.omo/
+.claude/
