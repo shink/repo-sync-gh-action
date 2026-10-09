@@ -1,0 +1,44 @@
+name: 'Sync Git repos'
+description: 'Mirror-sync Git repositories from a source platform to a destination platform'
+author: 'Yuanhao Ji'
+
+inputs:
+  src_platform:
+    description: 'Source platform (e.g. gitcode.com)'
+    required: false
+    default: 'gitcode.com'
+  src_repo:
+    description: 'Source repository in format "owner/repo"'
+    required: true
+  src_token:
+    description: 'Source platform access token (optional for public repos)'
+    required: false
+  dst_platform:
+    description: 'Destination platform (e.g. github.com)'
+    required: false
+    default: 'github.com'
+  dst_repo:
+    description: 'Destination repository in format "owner/repo"'
+    required: true
+  dst_token:
+    description: 'Destination platform access token (required if dst_key not provided)'
+    required: false
+  dst_key:
+    description: 'SSH private key for pushing to destination (uses SSH instead of HTTPS when provided)'
+    required: false
+  dry_run:
+    description: 'Dry run mode - only show what would be done (default: false)'
+    required: false
+    default: 'false'
+
+outputs:
+  sync_status:
+    description: 'Sync status summary ("success" or "failed")'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
+
+branding:
+  icon: 'git-merge'
+  color: 'blue'
