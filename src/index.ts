@@ -107,6 +107,7 @@ export async function syncRepository(): Promise<void> {
       runCmd('git', ['clone', '--mirror', srcGitUrl, tmpDir]);
 
       // 仅推送所有分支与标签，跳过 refs/tmp/*、refs/pull/* 等非标准 ref
+      // （--mirror 会推送全部 ref 并删除目标端多余分支，refs/tmp/* 会被目标端拒绝）
       // dry-run 模式下传入 --dry-run，不实际执行
       const pushArgs = ['push'];
       if (dryRun) pushArgs.push('--dry-run');
