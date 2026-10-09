@@ -4,7 +4,7 @@
   "description": "GitHub Action to sync Git repositories",
   "main": "dist/index.js",
   "scripts": {
-    "build": "ncc build src/index.ts -o dist --license licenses.txt && echo '{\"type\":\"module\"}' > dist/package.json",
+    "build": "ncc build src/index.ts -o dist --license licenses.txt",
     "test": "jest",
     "lint": "eslint src test --ext .ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
