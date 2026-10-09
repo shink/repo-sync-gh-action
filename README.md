@@ -112,6 +112,61 @@ jobs:
     force: false
 ```
 
+### Sync Multiple Repositories
+
+Use GitHub Actions `matrix` strategy to sync multiple repos in a single workflow run. Each repo runs as an independent job with its own `branches` and `force` settings:
+
+```yaml
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false          # one repo failing won't cancel the others
+      matrix:
+        include:
+          - src_repo: 'src_org/repo1'
+            dst_repo: 'dst_org/repo1'
+            branches: '*'
+            force: true
+          - src_repo: 'src_org/repo2'
+            dst_repo: 'dst_org/repo2'
+            branches: 'main,master'
+            force: false
+          - src_repo: 'src_org/repo3'
+            dst_repo: 'dst_org/repo3'
+            branches: 'main'
+            force: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+
+      - name: Sync ${{ matrix.src_repo }}
+        id: sync
+        uses: ./
+        with:
+          src_platform: gitcode.com
+          src_repo: ${{ matrix.src_repo }}
+          src_token: ${{ secrets.GITCODE_TOKEN }}
+          dst_platform: github.com
+          dst_repo: ${{ matrix.dst_repo }}
+          dst_token: ${{ secrets.GITHUB_TOKEN }}
+          branches: ${{ matrix.branches }}
+          force: ${{ matrix.force }}
+
+      - name: Display sync results
+        run: |
+          echo "Sync status: ${{ steps.sync.outputs.sync_status }}"
+          echo "Synced branches: ${{ steps.sync.outputs.synced_branches }}"
+          echo "Failed branches: ${{ steps.sync.outputs.failed_branches }}"
+```
+
 ## Setup
 
 ### 1. Create Access Tokens
