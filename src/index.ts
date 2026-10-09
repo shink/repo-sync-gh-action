@@ -26,7 +26,7 @@ function runCmd(
  */
 export async function syncRepository(): Promise<void> {
   // 读取输入
-  const srcPlatform = core.getInput('src_platform') || 'gitcode.com';
+  const srcPlatform = core.getInput('src_platform') || 'github.com';
   const srcRepoInput = core.getInput('src_repo', { required: true });
   const srcToken = core.getInput('src_token') || '';
   const dstPlatform = core.getInput('dst_platform') || 'github.com';
