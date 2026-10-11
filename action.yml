@@ -33,6 +33,10 @@ inputs:
     description: 'Dry run mode - only show what would be done (default: false)'
     required: false
     default: 'false'
+  lfs:
+    description: 'Sync Git LFS objects along with refs (default: false). Requires git-lfs installed on the runner.'
+    required: false
+    default: 'false'
 
 outputs:
   sync_status:

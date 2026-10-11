@@ -34,14 +34,24 @@ export async function syncRepository(): Promise<void> {
   const dstToken = core.getInput('dst_token') || '';
   const dstKey = core.getInput('dst_key') || '';
   const dryRun = (core.getInput('dry_run') || 'false').toLowerCase() === 'true';
+  const lfs = (core.getInput('lfs') || 'false').toLowerCase() === 'true';
 
   // 校验：目标端必须提供 dst_token 或 dst_key 之一
   if (!dstToken && !dstKey) {
     throw new Error('Either dst_token or dst_key must be provided');
   }
 
+  if (lfs) {
+    core.info('LFS sync enabled, verifying git-lfs installation...');
+    try {
+      runCmd('git', ['lfs', 'version']);
+    } catch {
+      throw new Error('git-lfs is not installed on the runner but lfs=true was requested');
+    }
+  }
+
   core.info(`Mirror sync from ${srcPlatform}/${srcRepoInput} to ${dstPlatform}/${dstRepoInput}`);
-  core.info(`dry_run: ${dryRun}, push via ${dstKey ? 'SSH key' : 'HTTPS token'}`);
+  core.info(`dry_run: ${dryRun}, lfs: ${lfs}, push via ${dstKey ? 'SSH key' : 'HTTPS token'}`);
 
   const result: SyncResult = {
     success: false,
@@ -99,21 +109,42 @@ export async function syncRepository(): Promise<void> {
       ? { ...process.env, GIT_SSH_COMMAND: `ssh -i ${sshKeyFile} -o StrictHostKeyChecking=no` }
       : undefined;
 
+    // LFS 启用时设置 GIT_LFS_SKIP_SMUDGE，避免 clone/fetch 触发 smudge 过滤
+    const lfsEnv: NodeJS.ProcessEnv = { ...(pushEnv ?? process.env), GIT_LFS_SKIP_SMUDGE: '1' };
+
     // 创建临时目录用于镜像克隆
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'repo-sync-'));
     try {
       // 镜像克隆源仓库（包含所有分支、tag、commit 的裸仓库）
       core.info('Cloning source repository (mirror)...');
-      runCmd('git', ['clone', '--mirror', srcGitUrl, tmpDir]);
+      runCmd('git', ['clone', '--mirror', srcGitUrl, tmpDir], {
+        env: lfs ? lfsEnv : undefined,
+      });
+
+      // LFS: 从源端拉取所有 LFS 大文件对象（mirror clone 不会自动获取 LFS objects）
+      if (lfs) {
+        core.info('Fetching LFS objects from source...');
+        runCmd('git', ['lfs', 'fetch', '--all'], { cwd: tmpDir, env: lfsEnv });
+      }
 
       // 仅推送所有分支与标签，跳过 refs/tmp/*、refs/pull/* 等非标准 ref
-      // （--mirror 会推送全部 ref 并删除目标端多余分支，refs/tmp/* 会被目标端拒绝）
       // dry-run 模式下传入 --dry-run，不实际执行
       const pushArgs = ['push'];
       if (dryRun) pushArgs.push('--dry-run');
       pushArgs.push(dstGitUrl, 'refs/heads/*:refs/heads/*', 'refs/tags/*:refs/tags/*');
       core.info('Pushing branches and tags to destination repository...');
       runCmd('git', pushArgs, { cwd: tmpDir, env: pushEnv });
+
+      // 推送 LFS 文件
+      // git lfs push 不支持 --dry-run，dry-run 模式下跳过
+      if (lfs) {
+        if (dryRun) {
+          core.info('[DRY RUN] Would push LFS objects to destination');
+        } else {
+          core.info('Pushing LFS objects to destination...');
+          runCmd('git', ['lfs', 'push', '--all', dstGitUrl], { cwd: tmpDir, env: lfsEnv });
+        }
+      }
 
       core.info('Sync completed successfully');
       result.success = true;

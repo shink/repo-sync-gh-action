@@ -7,6 +7,7 @@ A GitHub Action that **mirror-syncs** repositories between Git hosting platforms
 ## Features
 
 - Full mirror sync via `git clone --mirror` + `git push --mirror` — all branches, tags, and commits
+- Optional Git LFS object sync (`lfs: true`)
 - Auto-create destination repository if it doesn't exist
 - Dry run mode for testing without side effects
 - Push via HTTPS token or SSH key
@@ -32,6 +33,7 @@ A GitHub Action that **mirror-syncs** repositories between Git hosting platforms
 | `dst_token` | Destination platform access token (required if `dst_key` not provided) | No | - |
 | `dst_key` | SSH private key for pushing to destination | No | - |
 | `dry_run` | Dry run mode - only show what would be done | No | `false` |
+| `lfs` | Sync Git LFS objects along with refs (requires git-lfs on runner) | No | `false` |
 
 ## Outputs
 
@@ -107,6 +109,27 @@ Use `dst_key` instead of `dst_token` to push via SSH:
 ```
 
 > When `dst_key` is provided, push uses SSH protocol; `dst_token` is still used for API operations (checking/creating the destination repo). For public source repos, `src_token` can be omitted entirely.
+
+### Sync Git LFS Objects
+
+By default, the action only syncs branches, tags, and commits — **LFS objects are not transferred**. If the source repository uses [Git LFS](https://git-lfs.com), the destination will end up with LFS pointer files but no actual large-file content.
+
+Set `lfs: true` to fetch all LFS objects from the source and push them to the destination:
+
+```yaml
+- name: Sync repository (with LFS)
+  uses: shink/repo-sync-gh-action@v1
+  with:
+    src_platform: gitcode.com
+    src_repo: 'owner/repository-name'
+    src_token: ${{ secrets.GITCODE_TOKEN }}
+    dst_platform: github.com
+    dst_repo: 'org/repository-name'
+    dst_token: ${{ secrets.GITHUB_TOKEN }}
+    lfs: 'true'
+```
+
+> **Requirements:** `git-lfs` must be installed on the runner. GitHub-hosted runners (`ubuntu-latest`) have it pre-installed. In dry-run mode, LFS objects are fetched from the source but the LFS push to the destination is skipped.
 
 ### Sync Multiple Repositories
 
