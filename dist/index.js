@@ -38829,16 +38829,11 @@ async function syncRepository() {
                 core.info('Fetching LFS objects from source...');
                 runCmd('git', ['lfs', 'fetch', '--all'], { cwd: tmpDir, env: lfsEnv });
             }
-            // 仅推送所有分支与标签，跳过 refs/tmp/*、refs/pull/* 等非标准 ref
-            // dry-run 模式下传入 --dry-run，不实际执行
-            const pushArgs = ['push'];
-            if (dryRun)
-                pushArgs.push('--dry-run');
-            pushArgs.push(dstGitUrl, 'refs/heads/*:refs/heads/*', 'refs/tags/*:refs/tags/*');
-            core.info('Pushing branches and tags to destination repository...');
-            runCmd('git', pushArgs, { cwd: tmpDir, env: pushEnv });
-            // 推送 LFS 文件
-            // git lfs push 不支持 --dry-run，dry-run 模式下跳过
+            // 先推送 LFS 对象，再推送 refs：
+            // git push 只传输 LFS 指针文件，不传输二进制对象；
+            // GitHub 的 pre-receive hook (GH008) 要求 refs 引用的 LFS 对象必须已存在，
+            // 因此必须先执行 git lfs push --all 把对象传到目标端。
+            // 注意：git lfs push 不支持 --dry-run，dry-run 模式下跳过。
             if (lfs) {
                 if (dryRun) {
                     core.info('[DRY RUN] Would push LFS objects to destination');
@@ -38848,6 +38843,14 @@ async function syncRepository() {
                     runCmd('git', ['lfs', 'push', '--all', dstGitUrl], { cwd: tmpDir, env: lfsEnv });
                 }
             }
+            // 仅推送所有分支与标签，跳过 refs/tmp/*、refs/pull/* 等非标准 ref
+            // dry-run 模式下传入 --dry-run，不实际执行
+            const pushArgs = ['push'];
+            if (dryRun)
+                pushArgs.push('--dry-run');
+            pushArgs.push(dstGitUrl, 'refs/heads/*:refs/heads/*', 'refs/tags/*:refs/tags/*');
+            core.info('Pushing branches and tags to destination repository...');
+            runCmd('git', pushArgs, { cwd: tmpDir, env: pushEnv });
             core.info('Sync completed successfully');
             result.success = true;
         }
